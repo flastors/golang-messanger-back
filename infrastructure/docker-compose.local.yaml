@@ -1,0 +1,46 @@
+services:
+  postgres-db:
+    image: postgres:17-alpine
+    container_name: postgres-db
+    environment:
+      TZ: Europe/Moscow
+      POSTGRES_DB: chat_service
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    restart: unless-stopped
+    networks:
+      - chat-network
+    expose:
+      - 5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d chat_service"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  chat-service:
+    build:
+      context: ../
+      dockerfile: Dockerfile
+    container_name: chat-service
+    environment:
+      CHAT_SERVICE_DB_HOST: postgres-db
+
+    restart: unless-stopped
+    networks:
+        - chat-network
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+
+networks:
+  chat-network:
+    driver: bridge
