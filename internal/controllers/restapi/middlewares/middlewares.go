@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+type Middleware func(http.Handler) http.Handler
+
 type responseWriterWrapper struct {
 	http.ResponseWriter
 	status int

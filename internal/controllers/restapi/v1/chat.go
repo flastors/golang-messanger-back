@@ -41,6 +41,17 @@ type CreateChatResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// CreateChat godoc
+// @Summary Create chat
+// @Description Create a new chat
+// @Tags chats
+// @Accept json
+// @Produce json
+// @Param payload body CreateChatRequest true "Create chat request"
+// @Success 200 {object} CreateChatResponse
+// @Failure 400 {string} string
+// @Failure 500 {string} string
+// @Router /chats [post]
 func (h *ChatHandler) CreateChat(w http.ResponseWriter, req *http.Request) {
 	decoder := json.NewDecoder(req.Body)
 	var createChatReq CreateChatRequest
@@ -95,6 +106,16 @@ type GetChatMessageResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// GetChat godoc
+// @Summary Get chat with messages
+// @Tags chats
+// @Param id path int true "Chat ID"
+// @Param limit query int false "Limit messages"
+// @Produce json
+// @Success 200 {object} GetChatResponse
+// @Failure 400 {string} string
+// @Failure 404 {string} string
+// @Router /chats/{id} [get]
 func (h *ChatHandler) GetChat(w http.ResponseWriter, req *http.Request) {
 	var limit int
 	strChatID := chi.URLParam(req, "id")
@@ -151,6 +172,14 @@ func (h *ChatHandler) GetChat(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// DeleteChat godoc
+// @Summary Delete chat
+// @Tags chats
+// @Param id path int true "Chat ID"
+// @Success 204 {string} string
+// @Failure 400 {string} string
+// @Failure 500 {string} string
+// @Router /chats/{id} [delete]
 func (h *ChatHandler) DeleteChat(w http.ResponseWriter, req *http.Request) {
 	strChatID := chi.URLParam(req, "id")
 	chatID, err := strconv.ParseInt(strChatID, 10, 64)
@@ -178,6 +207,17 @@ type CreateMessageResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// CreateMessage godoc
+// @Summary Create message in chat
+// @Tags messages
+// @Accept json
+// @Param id path int true "Chat ID"
+// @Param payload body CreateMessageRequest true "Create message request"
+// @Produce json
+// @Success 200 {object} CreateMessageResponse
+// @Failure 400 {string} string
+// @Failure 404 {string} string
+// @Router /chats/{id}/messages [post]
 func (h *ChatHandler) CreateMessage(w http.ResponseWriter, req *http.Request) {
 	strChatID := chi.URLParam(req, "id")
 	chatID, err := strconv.ParseInt(strChatID, 10, 64)

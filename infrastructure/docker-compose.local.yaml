@@ -10,6 +10,8 @@ services:
     restart: unless-stopped
     networks:
       - chat-network
+    ports:
+      - "5432:5432"
     expose:
       - 5432
     volumes:
@@ -34,12 +36,48 @@ services:
         - chat-network
     ports:
       - "8080:8080"
+    expose:
+      - 8080
     depends_on:
       postgres-db:
         condition: service_healthy
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ../monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    expose:
+      - 9090
+    networks:
+      - chat-network
+    depends_on:
+      - chat-service
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:9.5.2
+    container_name: grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ../monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - chat-network
+    depends_on:
+      prometheus:
+        condition: service_started
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  grafana_data:
 
 networks:
   chat-network:

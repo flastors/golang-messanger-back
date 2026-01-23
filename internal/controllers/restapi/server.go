@@ -10,7 +10,10 @@ import (
 	"net/http"
 	"time"
 
+	_ "GolangMessanger/docs"
+
 	"github.com/go-chi/chi/v5"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 type Server struct {
@@ -42,12 +45,21 @@ func (s *Server) Stop(ctx context.Context) error {
 }
 
 func Router(usecases Usecases) *chi.Mux {
+	middlewares.RegisterMetrics()
 	r := chi.NewRouter()
+	// CORS должен идти первым, чтобы preflight не доходил до метрик/логгера
+	r.Use(middlewares.CORS)
 	r.Use(middlewares.Recoverer)
 	r.Use(middlewares.RequestLogger)
+	r.Use(middlewares.NewMetricsMiddleware())
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
 	})
+	r.Get("/metrics", middlewares.MetricsHandler().ServeHTTP)
+	// Swagger UI route (served by swag-generated docs package + http-swagger)
+	r.Handle("/swagger/*", httpSwagger.Handler())
+	// Swagger UI available at /swagger/index.html (and /swagger/*)
 	r.Route("/api", func(r chi.Router) {
 		v1Router := v1.NewRouterV1(usecases.ChatUsecase)
 		v1Router.RegisterRoutes(r)

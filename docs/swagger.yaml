@@ -1,0 +1,182 @@
+basePath: /api/v1
+definitions:
+  v1.CreateChatRequest:
+    properties:
+      title:
+        type: string
+    type: object
+  v1.CreateChatResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      title:
+        type: string
+    type: object
+  v1.CreateMessageRequest:
+    properties:
+      text:
+        type: string
+    type: object
+  v1.CreateMessageResponse:
+    properties:
+      chat_id:
+        type: integer
+      created_at:
+        type: string
+      id:
+        type: integer
+      text:
+        type: string
+    type: object
+  v1.GetChatMessageResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      text:
+        type: string
+    type: object
+  v1.GetChatResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      messages:
+        items:
+          $ref: '#/definitions/v1.GetChatMessageResponse'
+        type: array
+      title:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@example.com
+    name: API Support
+  description: REST API for GolangMessanger
+  termsOfService: http://example.com/terms/
+  title: Chat Service API
+  version: "1.0"
+paths:
+  /chats:
+    post:
+      consumes:
+      - application/json
+      description: Create a new chat
+      parameters:
+      - description: Create chat request
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/v1.CreateChatRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.CreateChatResponse'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Create chat
+      tags:
+      - chats
+  /chats/{id}:
+    delete:
+      parameters:
+      - description: Chat ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Delete chat
+      tags:
+      - chats
+    get:
+      parameters:
+      - description: Chat ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Limit messages
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.GetChatResponse'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+      summary: Get chat with messages
+      tags:
+      - chats
+  /chats/{id}/messages:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Chat ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Create message request
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/v1.CreateMessageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.CreateMessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+      summary: Create message in chat
+      tags:
+      - messages
+swagger: "2.0"

@@ -33,3 +33,7 @@ goose down
 - Маршрутизация запросов с помощью chi router (сервер работает с помощью net/http)
 - Сборка проекта с помощью Docker и Docker Compose
 - Миграции базы данных с помощью goose
+- Мониторинг и сбор метрик с помощью Prometheus и Grafana
+- Открытая документация API с помощью Swagger (http://localhost:8080/swagger/)
+- Добавлены CORS заголовки для поддержки кросс-доменных запросов
+- Grafana находится по адресу http://localhost:3000 (логин и пароль по умолчанию: admin/admin)
