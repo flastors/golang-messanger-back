@@ -3,7 +3,7 @@
 Как запустить:
 1. Клонируйте репозиторий:
    ```
-   git clone
+   git clone https://github.com/flastors/golang-messanger-back.git
     ```
 2. Перейдите в директорию проекта:
 3. Откройте терминал и выполните команду:
