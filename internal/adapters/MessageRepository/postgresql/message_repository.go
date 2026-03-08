@@ -39,9 +39,6 @@ func (r *messageRepository) Create(m *chat.Message) error {
 	if err := r.db.Create(model).Error; err != nil {
 		return err
 	}
-	if err := r.db.First(model, model.ID).Error; err != nil {
-		return err
-	}
 	m.ID = model.ID
 	m.CreatedAt = model.CreatedAt
 	return nil

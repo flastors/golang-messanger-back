@@ -1,6 +1,7 @@
 package postgresql
 
 import (
+	"errors"
 	"GolangMessanger/internal/domain/chat"
 	"time"
 
@@ -36,9 +37,6 @@ func (r *chatRepository) Create(c *chat.Chat) error {
 	if err := r.db.Create(model).Error; err != nil {
 		return err
 	}
-	if err := r.db.First(model, model.ID).Error; err != nil {
-		return err
-	}
 	c.ID = model.ID
 	c.CreatedAt = model.CreatedAt
 	return nil
@@ -48,7 +46,7 @@ func (r *chatRepository) Create(c *chat.Chat) error {
 func (r *chatRepository) FindByID(chatID int64) (*chat.Chat, error) {
 	var model chatModel
 	if err := r.db.First(&model, chatID).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, chat.ErrChatNotFound
 		}
 		return nil, err
