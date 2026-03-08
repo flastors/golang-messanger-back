@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"log"
 
 	"github.com/pressly/goose/v3"
@@ -18,7 +19,7 @@ func RunPostgresMigrations(dsn string) error {
 	}
 	defer db.Close()
 	if err := goose.Up(db, "./database/postgresql/migrations"); err != nil {
-		if err == goose.ErrAlreadyApplied {
+		if errors.Is(err, goose.ErrAlreadyApplied) {
 			log.Println("Migrations already up-to-date")
 			return nil
 		}

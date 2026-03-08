@@ -65,8 +65,8 @@ func makeUsecaseWithCfg() *chatUsecase {
 		MaxMessageSize:  1000,
 	}
 	return &chatUsecase{
-		ChatRepo:    &mockChatRepo{},
-		MessageRepo: &mockMessageRepo{},
+		chatRepo:    &mockChatRepo{},
+		messageRepo: &mockMessageRepo{},
 		cfg:         cfg,
 	}
 }
@@ -102,7 +102,7 @@ func TestCreateChat_ValidationAndSuccess(t *testing.T) {
 			},
 		}
 		u := makeUsecaseWithCfg()
-		u.ChatRepo = mock
+		u.chatRepo = mock
 		u.cfg = cfg
 
 		dto := NewChatDTO{Title: "  hi  "}
@@ -122,7 +122,7 @@ func TestGetChat_Behavior(t *testing.T) {
 			},
 		}
 		u := makeUsecaseWithCfg()
-		u.ChatRepo = mockC
+		u.chatRepo = mockC
 
 		_, _, err := u.GetChat(1, 10)
 		require.Error(t, err)
@@ -144,8 +144,8 @@ func TestGetChat_Behavior(t *testing.T) {
 		}
 		u := makeUsecaseWithCfg()
 		u.cfg = cfg
-		u.ChatRepo = mockC
-		u.MessageRepo = mockM
+		u.chatRepo = mockC
+		u.messageRepo = mockM
 
 		chat, msgs, err := u.GetChat(7, 10) // 10 > MaxMessageLimit (3)
 		require.NoError(t, err)
@@ -161,7 +161,7 @@ func TestDeleteChat(t *testing.T) {
 			deleteFn: func(id int64) error { return errors.New("boom") },
 		}
 		u := makeUsecaseWithCfg()
-		u.ChatRepo = mockC
+		u.chatRepo = mockC
 
 		err := u.DeleteChat(5)
 		require.Error(t, err)
@@ -176,7 +176,7 @@ func TestDeleteChat(t *testing.T) {
 			},
 		}
 		u := makeUsecaseWithCfg()
-		u.ChatRepo = mockC
+		u.chatRepo = mockC
 
 		err := u.DeleteChat(5)
 		require.NoError(t, err)
@@ -204,7 +204,7 @@ func TestCreateMessage(t *testing.T) {
 			findByIDFn: func(id int64) (*Chat, error) { return nil, errors.New("not found") },
 		}
 		u := makeUsecaseWithCfg()
-		u.ChatRepo = mockC
+		u.chatRepo = mockC
 
 		_, err := u.CreateMessage(&NewMessageDTO{ChatID: 1, Text: "ok"})
 		require.Error(t, err)
@@ -221,8 +221,8 @@ func TestCreateMessage(t *testing.T) {
 			},
 		}
 		u := makeUsecaseWithCfg()
-		u.ChatRepo = mockC
-		u.MessageRepo = mockM
+		u.chatRepo = mockC
+		u.messageRepo = mockM
 		u.cfg = config.ChatServiceConfig{MaxMessageSize: 1000}
 
 		msg, err := u.CreateMessage(&NewMessageDTO{ChatID: 2, Text: "hello"})

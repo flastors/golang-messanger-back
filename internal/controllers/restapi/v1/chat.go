@@ -4,6 +4,7 @@ import (
 	"GolangMessanger/internal/controllers/restapi/ports"
 	"GolangMessanger/internal/domain/chat"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -24,11 +25,20 @@ func NewChatHandler(usecase ports.ChatUsecase) *ChatHandler {
 
 func (h *ChatHandler) RegisterRoutes(r chi.Router) {
 	r.Route("/chats", func(r chi.Router) {
-		r.Get("/{id}", http.HandlerFunc(h.GetChat))
-		r.Post("/", http.HandlerFunc(h.CreateChat))
-		r.Delete("/{id}", http.HandlerFunc(h.DeleteChat))
-		r.Post("/{id}/messages", http.HandlerFunc(h.CreateMessage))
+		r.Get("/{id}", h.GetChat)
+		r.Post("/", h.CreateChat)
+		r.Delete("/{id}", h.DeleteChat)
+		r.Post("/{id}/messages", h.CreateMessage)
 	})
+}
+
+// writeJSON writes v as JSON with the given status code.
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		log.Println("writeJSON encode error:", err)
+	}
 }
 
 type CreateChatRequest struct {
@@ -53,44 +63,26 @@ type CreateChatResponse struct {
 // @Failure 500 {string} string
 // @Router /chats [post]
 func (h *ChatHandler) CreateChat(w http.ResponseWriter, req *http.Request) {
-	decoder := json.NewDecoder(req.Body)
 	var createChatReq CreateChatRequest
-	if err := decoder.Decode(&createChatReq); err != nil {
+	if err := json.NewDecoder(req.Body).Decode(&createChatReq); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	dto := &chat.NewChatDTO{
-		Title: createChatReq.Title,
-	}
-	c, usecaseErr := h.usecase.CreateChat(dto)
-	if usecaseErr != nil {
-		if usecaseErr == chat.ErrValidationFailed {
+	c, err := h.usecase.CreateChat(&chat.NewChatDTO{Title: createChatReq.Title})
+	if err != nil {
+		if errors.Is(err, chat.ErrValidationFailed) {
 			http.Error(w, "Validation failed", http.StatusBadRequest)
 			return
 		}
-		log.Println(usecaseErr.Error())
+		log.Println(err)
 		http.Error(w, "Failed to create chat", http.StatusInternalServerError)
 		return
 	}
-	res := &CreateChatResponse{
+	writeJSON(w, http.StatusOK, &CreateChatResponse{
 		ID:        c.ID,
 		Title:     c.Title,
 		CreatedAt: c.CreatedAt,
-	}
-	jsonBytes, err := json.Marshal(res)
-	if err != nil {
-		log.Println(err.Error())
-		http.Error(w, "Failed to marshal chat", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_, err = w.Write(jsonBytes)
-	if err != nil {
-		log.Println(err.Error())
-		http.Error(w, "Failed to write response", http.StatusInternalServerError)
-		return
-	}
+	})
 }
 
 type GetChatResponse struct {
@@ -117,29 +109,24 @@ type GetChatMessageResponse struct {
 // @Failure 404 {string} string
 // @Router /chats/{id} [get]
 func (h *ChatHandler) GetChat(w http.ResponseWriter, req *http.Request) {
-	var limit int
-	strChatID := chi.URLParam(req, "id")
-	chatID, err := strconv.ParseInt(strChatID, 10, 64)
+	chatID, err := strconv.ParseInt(chi.URLParam(req, "id"), 10, 64)
 	if err != nil {
-		log.Println(err.Error())
 		http.Error(w, "Invalid chat ID", http.StatusBadRequest)
 		return
 	}
-	strLimit := req.URL.Query().Get("limit")
-	if strLimit != "" {
-		var limitParseErr error
-		limit, limitParseErr = strconv.Atoi(strLimit)
-		if limitParseErr != nil {
-			limit = 20
+	limit := 0 // 0 means "no explicit limit" — the usecase enforces MaxMessageLimit
+	if s := req.URL.Query().Get("limit"); s != "" {
+		if n, err := strconv.Atoi(s); err == nil && n > 0 {
+			limit = n
 		}
 	}
-	c, msgs, usecaseErr := h.usecase.GetChat(chatID, limit)
-	if usecaseErr != nil {
-		if usecaseErr == chat.ErrChatNotFound {
+	c, msgs, err := h.usecase.GetChat(chatID, limit)
+	if err != nil {
+		if errors.Is(err, chat.ErrChatNotFound) {
 			http.Error(w, "Chat not found", http.StatusNotFound)
 			return
 		}
-		log.Println(usecaseErr.Error())
+		log.Println(err)
 		http.Error(w, "Failed to get chat", http.StatusInternalServerError)
 		return
 	}
@@ -156,20 +143,7 @@ func (h *ChatHandler) GetChat(w http.ResponseWriter, req *http.Request) {
 			CreatedAt: msg.CreatedAt,
 		})
 	}
-	jsonBytes, err := json.Marshal(res)
-	if err != nil {
-		log.Println(err.Error())
-		http.Error(w, "Failed to marshal response", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_, err = w.Write(jsonBytes)
-	if err != nil {
-		log.Println(err.Error())
-		http.Error(w, "Failed to write response", http.StatusInternalServerError)
-		return
-	}
+	writeJSON(w, http.StatusOK, res)
 }
 
 // DeleteChat godoc
@@ -181,15 +155,13 @@ func (h *ChatHandler) GetChat(w http.ResponseWriter, req *http.Request) {
 // @Failure 500 {string} string
 // @Router /chats/{id} [delete]
 func (h *ChatHandler) DeleteChat(w http.ResponseWriter, req *http.Request) {
-	strChatID := chi.URLParam(req, "id")
-	chatID, err := strconv.ParseInt(strChatID, 10, 64)
+	chatID, err := strconv.ParseInt(chi.URLParam(req, "id"), 10, 64)
 	if err != nil {
-		log.Println(err.Error())
 		http.Error(w, "Invalid chat ID", http.StatusBadRequest)
 		return
 	}
 	if err := h.usecase.DeleteChat(chatID); err != nil {
-		log.Println(err.Error())
+		log.Println(err)
 		http.Error(w, "Failed to delete chat", http.StatusInternalServerError)
 		return
 	}
@@ -219,57 +191,37 @@ type CreateMessageResponse struct {
 // @Failure 404 {string} string
 // @Router /chats/{id}/messages [post]
 func (h *ChatHandler) CreateMessage(w http.ResponseWriter, req *http.Request) {
-	strChatID := chi.URLParam(req, "id")
-	chatID, err := strconv.ParseInt(strChatID, 10, 64)
+	chatID, err := strconv.ParseInt(chi.URLParam(req, "id"), 10, 64)
 	if err != nil {
-		log.Println(err.Error())
 		http.Error(w, "Invalid chat ID", http.StatusBadRequest)
 		return
 	}
-	decoder := json.NewDecoder(req.Body)
 	var createMsgReq CreateMessageRequest
-	if err := decoder.Decode(&createMsgReq); err != nil {
-		log.Println(err.Error())
+	if err := json.NewDecoder(req.Body).Decode(&createMsgReq); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	dto := &chat.NewMessageDTO{
+	m, err := h.usecase.CreateMessage(&chat.NewMessageDTO{
 		ChatID: chatID,
 		Text:   createMsgReq.Text,
-	}
-	m, usecaseErr := h.usecase.CreateMessage(dto)
-	if usecaseErr != nil {
-		if usecaseErr == chat.ErrValidationFailed {
-			log.Println(usecaseErr.Error())
+	})
+	if err != nil {
+		if errors.Is(err, chat.ErrValidationFailed) {
 			http.Error(w, "Validation failed", http.StatusBadRequest)
 			return
 		}
-		if usecaseErr == chat.ErrChatNotFound {
+		if errors.Is(err, chat.ErrChatNotFound) {
 			http.Error(w, "Chat not found", http.StatusNotFound)
 			return
 		}
-		log.Println(usecaseErr.Error())
+		log.Println(err)
 		http.Error(w, "Failed to create message", http.StatusInternalServerError)
 		return
 	}
-	res := &CreateMessageResponse{
+	writeJSON(w, http.StatusOK, &CreateMessageResponse{
 		ID:        m.ID,
 		ChatID:    m.ChatID,
 		Text:      m.Text,
 		CreatedAt: m.CreatedAt,
-	}
-	jsonBytes, err := json.Marshal(res)
-	if err != nil {
-		log.Println(err.Error())
-		http.Error(w, "Failed to marshal message", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_, err = w.Write(jsonBytes)
-	if err != nil {
-		log.Println(err.Error())
-		http.Error(w, "Failed to write response", http.StatusInternalServerError)
-		return
-	}
+	})
 }
